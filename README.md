@@ -70,13 +70,107 @@ Vercel auto-detects the `/api` folder as serverless functions — no extra confi
 
 ```
 mandi-pay/
-├─ index.html                      ← the page (edit your handles here)
+├─ index.html                      ← the payment page (edit your handles here)
+├─ admin.html                      ← private payments dashboard (/admin)
+├─ vercel.json                     ← schedules the daily summary email
 ├─ api/
 │  ├─ create-checkout-session.js   ← builds the Stripe Cash App checkout
-│  └─ webhook.js                   ← (optional) records confirmed payments
+│  ├─ webhook.js                   ← records CONFIRMED Cash App payments (auto)
+│  ├─ notify.js                    ← records SELF-REPORTED PayPal/Venmo/Zelle
+│  ├─ payments.js                  ← feeds the dashboard (password-protected)
+│  ├─ daily-summary.js             ← emails the once-a-day digest (Vercel Cron)
+│  └─ _lib.js                      ← shared: write to Supabase + send email
 ├─ package.json                    ← Stripe dependency
 └─ .env.example                    ← which env vars to set in Vercel
 ```
+
+---
+
+## STEP 4 — Payment log + alerts (who paid / how much / how)
+
+This is the unified system so the business sees **every** payment in one place
+and gets an email the moment one comes in — instead of watching four apps.
+
+**What gets recorded:** time, payer name, amount, method, the “what’s this for”
+note, and a status:
+- **Confirmed** = real Cash App payment verified by Stripe (logs itself via the webhook).
+- **Self-reported** = the payer tapped “I’ve paid” after PayPal/Venmo/Zelle. This is
+  their *claim*, not proof — always confirm it landed in your actual app before
+  treating it as paid.
+
+### 4a. Create the Supabase project + table
+1. Go to **supabase.com**, create a free project (the client's own account).
+2. Open **SQL Editor**, paste this, and click **Run**:
+
+```sql
+create table payments (
+  id          bigint generated always as identity primary key,
+  created_at  timestamptz default now(),
+  method      text,     -- cashapp / paypal / venmo / zelle
+  payer       text,
+  amount      numeric,
+  note        text,
+  status      text,     -- 'confirmed' (Stripe) or 'reported' (self-reported)
+  source      text      -- 'stripe' or 'page'
+);
+```
+3. Go to **Project Settings → API** and copy the **Project URL** and the
+   **service_role** key (the secret one — NOT the anon key).
+
+### 4b. (Optional) turn on email alerts
+1. Create a free account at **resend.com**, make an **API key**.
+2. To send from your own domain, verify it in Resend. Until then the test sender
+   `onboarding@resend.dev` works for sending to yourself.
+
+### 4c. Add the env vars in Vercel
+In **Vercel → Project → Settings → Environment Variables** add:
+
+| Variable | Value |
+|----------|-------|
+| `SUPABASE_URL` | your Supabase Project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | the Supabase **service_role** secret key |
+| `ADMIN_PASSWORD` | any password you choose (to open the dashboard) |
+| `RESEND_API_KEY` | *(optional)* your Resend key for email alerts |
+| `ALERT_EMAIL` | *(optional)* where alerts go, e.g. flexsupportservicesllc@gmail.com |
+| `ALERT_FROM` | *(optional)* `Mandi Payments <onboarding@resend.dev>` |
+
+Redeploy. Done.
+
+### 4d. Open the dashboard
+Go to **`https://YOUR-DOMAIN/admin`**, enter the `ADMIN_PASSWORD`, and you’ll see
+the running list with running totals and a Confirmed / Self-reported filter.
+
+> Email + Supabase are both **optional and independent**. With neither set, the
+> page still works and payments are written to the Vercel function logs. Add
+> Supabase for the dashboard, add Resend for email — in any order.
+
+---
+
+## STEP 5 — Daily summary email (once-a-day digest)
+
+One email a day with the last 24 hours: total collected, confirmed vs
+self-reported, a per-method breakdown, and the full list. It runs on **Vercel
+Cron** (free tier allows one daily job) and needs Supabase + Resend from Step 4.
+
+1. The schedule lives in **`vercel.json`** (already included):
+   ```json
+   { "crons": [ { "path": "/api/daily-summary", "schedule": "0 13 * * *" } ] }
+   ```
+   `0 13 * * *` = **1:00 PM UTC daily** ≈ **8:00 AM US Central**, summarizing the
+   previous 24 hours. To change the time, edit the two numbers (minute hour) —
+   it’s in **UTC**, so subtract 5–6 hours for US Central.
+2. Add one more env var in **Vercel → Settings → Environment Variables**:
+   | Variable | Value |
+   |----------|-------|
+   | `CRON_SECRET` | any long random string (locks the cron so only Vercel can trigger it) |
+3. Redeploy. Vercel registers the cron automatically (check **Vercel → Project
+   → Settings → Cron Jobs**).
+4. **Test it now** without waiting a day: open
+   `https://YOUR-DOMAIN/api/daily-summary?pw=YOUR_ADMIN_PASSWORD` in a browser.
+   You should get a JSON `{ ok: true, ... }` and the summary email in your inbox.
+
+> Needs email (Resend) set up to actually send. Without `CRON_SECRET` it still
+> runs, but anyone could trigger it — so set `CRON_SECRET`.
 
 ---
 
@@ -86,4 +180,6 @@ mandi-pay/
 - **Square alternative:** Cash App Pay can also run through Square instead of Stripe. If you’d rather settle Cash App into your Square balance, say so — the Cash App button would use Square’s Web Payments SDK instead (a different `/api` function). Pick ONE processor for Cash App; don’t wire both.
 - **PayPal/Venmo can be upgraded** to real auto-confirming checkout later (PayPal SDK handles both). Right now they’re manual by your choice.
 - Test everything in Stripe **test mode** (`sk_test_...` + a test Cash App flow) before going live.
-- For a running list of all payments (manual + auto), the next step is a small Supabase table — ask and I’ll wire the “I’ve paid” button and the webhook to write to it.
+- For a running list of all payments (manual + auto), see **STEP 4** above — it’s
+  already wired: the webhook logs confirmed Cash App, the “I’ve paid” button logs
+  the rest, and `/admin` shows them all.

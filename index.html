@@ -208,6 +208,12 @@ function closeSheet(){$("#overlay").classList.remove("on");}
 function markPaid(methodName){
  const amt=fmt($("#amount").value);
  const first=($("#payer").value||"").trim().split(" ")[0];
+ // Tell the business a payment was reported (self-reported — they verify it).
+ const methodKey={ "PayPal":"paypal", "Venmo":"venmo", "Zelle":"zelle", "Cash App":"cashapp" }[methodName]||active;
+ fetch("/api/notify",{
+   method:"POST",headers:{"Content-Type":"application/json"},
+   body:JSON.stringify({method:methodKey,amount:amt,name:$("#payer").value,note:$("#note").value})
+ }).catch(()=>{});
  $("#sheet").innerHTML=`
   <div class="thanks">
    <div class="big">✅</div>

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mandi — Payments</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:#eef1f6;color:#0f172a;line-height:1.5}
+.wrap{max-width:900px;margin:0 auto;padding:0 18px 60px}
+header.top{background:#0f172a;color:#fff;padding:20px 0;margin-bottom:22px}
+header.top .wrap{display:flex;align-items:center;gap:12px}
+.logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,#10b981,#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:21px}
+.brandname{font-size:21px;font-weight:800}
+.brandsub{font-size:12px;color:#94a3b8}
+.card{background:#fff;border:1px solid #e5e9f0;border-radius:18px;padding:22px;box-shadow:0 10px 30px rgba(15,23,42,.08);margin-bottom:18px}
+.login{max-width:380px;margin:40px auto}
+.login label{display:block;font-size:13px;font-weight:600;color:#64748b;margin-bottom:6px}
+.login input{width:100%;border:2px solid #e5e9f0;border-radius:12px;padding:13px 14px;font-size:16px;outline:none;background:#f8fafc}
+.login input:focus{border-color:#10b981}
+.btn{display:block;width:100%;border:0;background:#10b981;color:#fff;font-weight:800;padding:15px;border-radius:14px;cursor:pointer;font-size:16px;margin-top:14px}
+.btn:active{transform:scale(.98)}
+.err{color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;padding:10px 12px;font-size:13px;margin-top:12px;display:none}
+.err.show{display:block}
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.stat{background:#fff;border:1px solid #e5e9f0;border-radius:16px;padding:16px;text-align:center;box-shadow:0 10px 30px rgba(15,23,42,.06)}
+.stat .n{font-size:26px;font-weight:800}
+.stat .l{font-size:12px;color:#64748b;margin-top:2px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:2px solid #e5e9f0;background:#fff;border-radius:20px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;color:#475569}
+.chip.on{background:#0f172a;color:#fff;border-color:#0f172a}
+.refresh{margin-left:auto;border:0;background:#0f172a;color:#fff;border-radius:20px;padding:9px 16px;font-size:13px;font-weight:700;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{padding:12px 10px;text-align:left;border-bottom:1px solid #eef1f6}
+th{font-size:12px;color:#64748b;text-transform:uppercase;letter-spacing:.3px}
+td.amt{font-weight:800;white-space:nowrap}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px}
+.pill.ok{background:#ecfdf5;color:#059669}
+.pill.rep{background:#fffbeb;color:#92400e}
+.m-cashapp{color:#00a63a}.m-paypal{color:#0070ba}.m-venmo{color:#008cff}.m-zelle{color:#6d1ed4}
+.empty{text-align:center;color:#64748b;padding:40px 0}
+.note-cell{color:#475569;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:620px){.hide-sm{display:none}.summary{grid-template-columns:repeat(3,1fr)}.stat .n{font-size:20px}}
+</style>
+</head>
+<body>
+<header class="top">
+ <div class="wrap">
+  <div class="logo">M</div>
+  <div><div class="brandname">Mandi</div><div class="brandsub">Payments dashboard</div></div>
+ </div>
+</header>
+<div class="wrap">
+
+ <div class="card login" id="login">
+  <label for="pw">Enter dashboard password</label>
+  <input id="pw" type="password" placeholder="Password" autocomplete="current-password">
+  <button class="btn" id="loginBtn">View payments</button>
+  <div class="err" id="loginErr"></div>
+ </div>
+
+ <div id="app" style="display:none">
+  <div class="summary" id="summary"></div>
+  <div class="bar">
+   <button class="chip on" data-f="all">All</button>
+   <button class="chip" data-f="confirmed">Confirmed</button>
+   <button class="chip" data-f="reported">Self-reported</button>
+   <button class="refresh" id="refreshBtn">↻ Refresh</button>
+  </div>
+  <div class="card" style="padding:6px 14px">
+   <table>
+    <thead><tr><th>When</th><th>From</th><th>Method</th><th class="hide-sm">For</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody id="rows"></tbody>
+   </table>
+   <div class="empty" id="empty" style="display:none">No payments yet.</div>
+  </div>
+ </div>
+
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const MLABEL={cashapp:'Cash App',paypal:'PayPal',venmo:'Venmo',zelle:'Zelle'};
+let DATA=[], filter='all';
+
+function pw(){ return sessionStorage.getItem('mandi_pw')||''; }
+
+async function load(){
+  const r=await fetch('/api/payments?pw='+encodeURIComponent(pw()));
+  if(r.status===401){ logout('Wrong password.'); return false; }
+  const d=await r.json();
+  if(!r.ok){ $('#loginErr').textContent=d.error||'Could not load.'; $('#loginErr').classList.add('show'); return false; }
+  DATA=d.payments||[]; render(); return true;
+}
+
+function render(){
+  const list=DATA.filter(p=>filter==='all'?true:p.status===filter);
+  const total=DATA.reduce((s,p)=>s+Number(p.amount||0),0);
+  const confirmed=DATA.filter(p=>p.status==='confirmed').reduce((s,p)=>s+Number(p.amount||0),0);
+  $('#summary').innerHTML=
+    `<div class="stat"><div class="n">${DATA.length}</div><div class="l">Payments</div></div>`+
+    `<div class="stat"><div class="n">$${confirmed.toFixed(2)}</div><div class="l">Confirmed (auto)</div></div>`+
+    `<div class="stat"><div class="n">$${total.toFixed(2)}</div><div class="l">All logged</div></div>`;
+  const rows=$('#rows');
+  if(!list.length){ rows.innerHTML=''; $('#empty').style.display='block'; return; }
+  $('#empty').style.display='none';
+  rows.innerHTML=list.map(p=>{
+    const when=p.created_at?new Date(p.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'—';
+    const ml=MLABEL[p.method]||esc(p.method);
+    const st=p.status==='confirmed'
+      ?'<span class="pill ok">Confirmed</span>'
+      :'<span class="pill rep">Reported</span>';
+    return `<tr>
+      <td>${esc(when)}</td>
+      <td>${esc(p.payer||'—')}</td>
+      <td class="m-${esc(p.method)}" style="font-weight:700">${ml}</td>
+      <td class="note-cell hide-sm">${esc(p.note||'—')}</td>
+      <td class="amt">$${Number(p.amount||0).toFixed(2)}</td>
+      <td>${st}</td>
+    </tr>`;
+  }).join('');
+}
+
+function logout(msg){
+  sessionStorage.removeItem('mandi_pw');
+  $('#app').style.display='none'; $('#login').style.display='block';
+  if(msg){ $('#loginErr').textContent=msg; $('#loginErr').classList.add('show'); }
+}
+
+$('#loginBtn').addEventListener('click',async()=>{
+  const v=$('#pw').value.trim();
+  if(!v) return;
+  sessionStorage.setItem('mandi_pw',v);
+  $('#loginErr').classList.remove('show');
+  const ok=await load();
+  if(ok){ $('#login').style.display='none'; $('#app').style.display='block'; }
+});
+$('#pw').addEventListener('keydown',e=>{if(e.key==='Enter')$('#loginBtn').click();});
+$('#refreshBtn').addEventListener('click',load);
+document.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{
+  document.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));
+  c.classList.add('on'); filter=c.dataset.f; render();
+}));
+
+// Auto-login if password already in this session
+if(pw()){ load().then(ok=>{ if(ok){ $('#login').style.display='none'; $('#app').style.display='block'; } }); }
+</script>
+</body>
+</html>
