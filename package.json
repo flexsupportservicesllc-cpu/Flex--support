@@ -1,0 +1,9 @@
+{
+  "name": "mandi-pay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mandi — multi-method client payment landing page (manual + Stripe Cash App Pay)",
+  "dependencies": {
+    "stripe": "18.5.0"
+  }
+}
