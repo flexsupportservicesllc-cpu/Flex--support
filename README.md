@@ -32,3 +32,11 @@ Responsive, customer-entered service payments via Stripe (Cash App Pay where eli
 
 ### Current state
 Source code is an implementation starter; no merchant keys, webhook endpoint, Supabase project, or live payment accounts are connected. Do not accept live payments until the above tests pass.
+
+## Email notifications (v2)
+- Configure `RESEND_API_KEY`, `ALERT_FROM_EMAIL` (domain must be verified with Resend), and `ALERT_TO_EMAIL` (recipient may be a comma-separated list). Keep Resend key server-only.
+- A signed Stripe webhook sends alerts for paid checkout and asynchronous payment failure. A verified PayPal capture sends a paid alert. No notification is generated merely by clicking the payment button. If webhook delivery fails, Stripe can retry.
+- Daily report runs via `/api/cron/daily-report` at **13:00 UTC** and summarizes the **preceding UTC calendar day**. Set `CRON_SECRET` as a random secret in Vercel for authorization; it must not appear in URLs or client code.
+- Vercel Hobby cron schedules can be approximate; verify Vercel plan limitations. PayPal failed/declined event webhooks and refund reconciliation are not yet implemented; these are required for comprehensive failure/refund alerts.
+- Email delivery requires verified sender domain and real provider credentials. No email sending has been tested in this source package; do not imply alerts are live until verified.
+- This package adds a new `vercel.json` cron; remove the client's obsolete `/api/daily-summary` cron when deploying this release.
