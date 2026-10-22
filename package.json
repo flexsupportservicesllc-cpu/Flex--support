@@ -1,9 +1,1 @@
-{
-  "name": "mandi-pay",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Mandi — multi-method client payment landing page (manual + Stripe Cash App Pay)",
-  "dependencies": {
-    "stripe": "18.5.0"
-  }
-}
+{"name":"flexsupport-services","version":"1.0.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start","typecheck":"tsc --noEmit"},"dependencies":{"next":"^15.5.0","react":"^19.1.0","react-dom":"^19.1.0","stripe":"^18.5.0","@supabase/supabase-js":"^2.57.0","lucide-react":"^0.468.0"},"devDependencies":{"typescript":"^5.9.0","@types/node":"^22.18.0","@types/react":"^19.1.0","@types/react-dom":"^19.1.0"}}
