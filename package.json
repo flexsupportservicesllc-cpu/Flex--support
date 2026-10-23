@@ -1,1 +1,30 @@
-{"name":"flexsupport-services","version":"1.0.0","private":true,"scripts":{"dev":"next dev","build":"next build","start":"next start","typecheck":"tsc --noEmit"},"dependencies":{"next":"^15.5.0","react":"^19.1.0","react-dom":"^19.1.0","stripe":"^18.5.0","@supabase/supabase-js":"^2.57.0","lucide-react":"^0.468.0"},"devDependencies":{"typescript":"^5.9.0","@types/node":"^22.18.0","@types/react":"^19.1.0","@types/react-dom":"^19.1.0"}}
+{
+  "name": "flexsupport-services",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "test:routes": "node scripts/test-payment-routes.cjs",
+    "test:webhooks": "node scripts/test-webhooks.cjs",
+    "check:source": "node scripts/check-source.cjs",
+    "test:report": "node scripts/test-daily-report.cjs",
+    "test:persistence": "node scripts/test-persistence.cjs"
+  },
+  "dependencies": {
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "stripe": "^18.5.0",
+    "@supabase/supabase-js": "^2.57.0",
+    "lucide-react": "^0.468.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.0",
+    "@types/node": "^22.18.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0"
+  }
+}
