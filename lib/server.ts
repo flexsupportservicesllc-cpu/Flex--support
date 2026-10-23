@@ -4,9 +4,9 @@ import type {PaymentInput,PaymentMethod} from './shared';
 export function db(){const url=process.env.SUPABASE_URL,key=process.env.SUPABASE_SERVICE_ROLE_KEY;if(!url||!key)throw Error('Supabase server configuration is missing.');return createClient(url,key,{auth:{persistSession:false}});}
 export async function addPayment(method:PaymentMethod,cents:number,input:PaymentInput){
  const {data,error}=await db().from('payments').insert({method,amount_cents:cents,currency:'USD',customer_name:input.name,customer_email:input.email,service_description:input.service,reference:input.reference||null,status:'pending'}).select('id').single();
- if(error)throw Error('Unable to create payment record.');return data.id as string;
+ if(error){console.error('Payment insert rejected', {code:error.code,message:error.message,details:error.details,hint:error.hint});throw Error('Unable to create payment record. Contact Flexsupport Services.');}return data.id as string;
 }
-export async function setPayment(id:string,updates:Record<string,unknown>){const {error}=await db().from('payments').update(updates).eq('id',id);if(error)throw Error('Unable to update payment record.');}
+export async function setPayment(id:string,updates:Record<string,unknown>){const {error}=await db().from('payments').update(updates).eq('id',id);if(error){console.error('Payment update rejected',{code:error.code,message:error.message});throw Error('Unable to update payment record.');}}
 export async function paypalAccessToken(){
  const id=process.env.PAYPAL_CLIENT_ID,secret=process.env.PAYPAL_CLIENT_SECRET;
  if(!id||!secret)throw Error('PayPal is not configured.');

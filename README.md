@@ -40,3 +40,12 @@ Source code is an implementation starter; no merchant keys, webhook endpoint, Su
 - Vercel Hobby cron schedules can be approximate; verify Vercel plan limitations. PayPal failed/declined event webhooks and refund reconciliation are not yet implemented; these are required for comprehensive failure/refund alerts.
 - Email delivery requires verified sender domain and real provider credentials. No email sending has been tested in this source package; do not imply alerts are live until verified.
 - This package adds a new `vercel.json` cron; remove the client's obsolete `/api/daily-summary` cron when deploying this release.
+
+## V3 implementation notes
+- Venmo is **manual and distinct** from PayPal: environment variable `VENMO_HANDLE=@rasika-Wick`; payments recorded `pending` until independent verification. This is not a Venmo API integration and must not be described as confirmed. Venmo personal-profile rules may restrict commercial payments.
+- Zelle remains manual (`NEXT_PUBLIC_ZELLE_RECIPIENT=2295467045`), with independent verification.
+- PayPal API supports only PayPal orders; the client must set live Client ID/Secret and `PAYPAL_ENV=live`, `NEXT_PUBLIC_PAYPAL_ENV=live` in Vercel.
+- If payment creation fails, review **Vercel function logs** for `Payment insert rejected` with the Supabase code/message. No secret values are logged.
+- Notifications depend on Resend and provider events, not just creating an order. The current Stripe webhook covers confirmed checkouts and asynchronous failures, and PayPal capture covers approved payment; comprehensive failure/refund coverage needs further work.
+- Daily report runs at 13:00 UTC, corresponding to 9AM EDT / 8AM EST, **not** consistently 8AM Eastern. It summarizes rows **created** the prior UTC day, not an Eastern-calendar-day accounting report.
+- Until verified, do not accept live payments. Configure Stripe/PayPal webhooks and Resend sender domain first.

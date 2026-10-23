@@ -4,7 +4,7 @@ import {notifyPayment} from '@/lib/notifications';
 export const runtime='nodejs';
 export async function POST(req:Request){try{
  const {orderId}=await req.json();if(typeof orderId!=='string'||!/^[-A-Z0-9]{8,32}$/.test(orderId))throw Error('Invalid order.');
- const {data:payment,error}=await db().from('payments').select('id,amount_cents,status').eq('provider_order_id',orderId).in('method',['paypal','venmo']).single();
+ const {data:payment,error}=await db().from('payments').select('id,amount_cents,status').eq('provider_order_id',orderId).eq('method','paypal').single();
  if(error||!payment)throw Error('Order not found.');
  if(payment.status==='paid')return Response.json({status:'COMPLETED'});
  const access=await paypalAccessToken();
